@@ -1,10 +1,23 @@
 import { GoogleGenAI } from "@google/genai";
 import { ProcessedFuelEntry } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let ai: GoogleGenAI | null = null;
 const model = 'gemini-2.5-flash';
 
+try {
+    // Attempt to initialize AI. If API_KEY is missing, it will throw.
+    // We catch the error to prevent the app from crashing.
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+} catch (error) {
+    console.error("Failed to initialize GoogleGenAI. AI features will be disabled.", error);
+    // 'ai' remains null, and the functions below will handle it gracefully.
+}
+
 export const getAnalysisFromGemini = async (entries: ProcessedFuelEntry[], monthName: string): Promise<string> => {
+    if (!ai) {
+        return "Desculpe, o serviço de IA não está disponível. Verifique a configuração da chave de API.";
+    }
+
     const dataSummary = entries.map(e => ({
         dia: e.date.getUTCDate(),
         gasto: e.totalValue.toFixed(2),
@@ -31,6 +44,10 @@ export const getAnalysisFromGemini = async (entries: ProcessedFuelEntry[], month
 };
 
 export const getTripEstimateFromGemini = async (distance: number, avgKmpl: number): Promise<string> => {
+    if (!ai) {
+        return "Desculpe, o serviço de IA não está disponível. Verifique a configuração da chave de API.";
+    }
+    
     const systemInstruction = "Você é um assistente de planejamento de viagens. Sua tarefa é calcular o custo de uma viagem de carro e fornecer dicas úteis. Assuma um preço médio de R$ 5,80 por litro de gasolina para o cálculo.";
     const userQuery = `Preciso estimar o custo de uma viagem de ${distance} km. O consumo médio do meu carro é de ${avgKmpl.toFixed(1)} km/L. Com base no preço médio de R$ 5,80 por litro de gasolina, calcule o custo total da viagem. Apresente o resultado de forma clara, incluindo o preço do combustível assumido, os litros necessários e o custo final. Adicione também 2 dicas para uma direção mais econômica durante a viagem. Use a tag <strong> para destaques.`;
 
