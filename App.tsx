@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { RawFuelEntry, ProcessedFuelEntry, MaintenanceData, FuelType, Reminder } from './types';
@@ -340,13 +341,6 @@ const App: React.FC = () => {
                     </div>
                 </section>
 
-                <section className="mb-8">
-                    <div className="bg-gradient-to-r from-pink-800/70 to-black/40 p-3 rounded-lg mb-4 shadow-md">
-                        <h2 className="text-xl font-semibold text-white">Análise Gráfica</h2>
-                    </div>
-                    <AnalyticsDashboard data={chartData} />
-                </section>
-
                 {(maintenanceReminders.length > 0 || dueReminders.length > 0) && (
                     <section className="mb-8">
                         <div className="bg-gradient-to-r from-yellow-800/70 to-red-800/40 p-3 rounded-lg mb-4 shadow-md">
@@ -448,11 +442,18 @@ const App: React.FC = () => {
                         ))}
                     </div>
                 </section>
+
+                <section className="mt-8">
+                    <div className="bg-gradient-to-r from-pink-800/70 to-black/40 p-3 rounded-lg mb-4 shadow-md">
+                        <h2 className="text-xl font-semibold text-white">Análise Gráfica</h2>
+                    </div>
+                    <AnalyticsDashboard data={chartData} />
+                </section>
             </main>
             
             <footer className="max-w-4xl mx-auto p-4 text-center text-gray-500 text-xs">
                 <p>Desenvolvido por André Brito</p>
-                <p>Versão 1.0</p>
+                <p>Versão 1.1</p>
             </footer>
 
             {activeModal === 'entry' && (

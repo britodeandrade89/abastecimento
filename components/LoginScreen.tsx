@@ -27,7 +27,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </button>
             <div className="absolute bottom-6 text-center text-gray-300 text-sm animate-slide-up-slow" style={{ animationDelay: '400ms' }}>
                 <p>Desenvolvido por André Brito</p>
-                <p>Versão 1.0</p>
+                <p>Versão 1.1</p>
             </div>
             <style>{`
                 @keyframes fade-in {
