@@ -1,8 +1,7 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { ProcessedFuelEntry } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const model = 'gemini-2.5-flash';
 
 export const getAnalysisFromGemini = async (entries: ProcessedFuelEntry[], monthName: string): Promise<string> => {
@@ -19,9 +18,9 @@ export const getAnalysisFromGemini = async (entries: ProcessedFuelEntry[], month
     try {
         const response = await ai.models.generateContent({
             model: model,
-            contents: [{ parts: [{ text: userQuery }] }],
+            contents: userQuery,
             config: {
-                systemInstruction: { parts: [{ text: systemInstruction }] },
+                systemInstruction: systemInstruction,
             },
         });
         return response.text;
@@ -38,9 +37,9 @@ export const getTripEstimateFromGemini = async (distance: number, avgKmpl: numbe
     try {
         const response = await ai.models.generateContent({
             model: model,
-            contents: [{ parts: [{ text: userQuery }] }],
+            contents: userQuery,
             config: {
-                systemInstruction: { parts: [{ text: systemInstruction }] },
+                systemInstruction: systemInstruction,
             },
         });
         return response.text;

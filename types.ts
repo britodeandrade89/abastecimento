@@ -1,4 +1,3 @@
-
 import { Timestamp } from 'firebase/firestore';
 
 export enum FuelType {
@@ -28,4 +27,20 @@ export interface MaintenanceData {
     oil: number;
     tires: number;
     engine: number;
+}
+
+export interface Reminder {
+    id: string;
+    name: string;
+    type: 'km' | 'date';
+    // One-time reminder values
+    kmValue?: number;
+    dateValue?: string; // 'YYYY-MM-DD'
+    // Recurrence config
+    isRecurring: boolean;
+    recurringKmInterval?: number;
+    recurringDaysInterval?: number;
+    // Anchor point for recurrence
+    lastCompletionKm?: number;
+    lastCompletionDate?: string; // 'YYYY-MM-DD'
 }

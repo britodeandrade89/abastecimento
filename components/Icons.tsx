@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 const iconStyle: React.CSSProperties = { width: '1.25em', height: '1.25em', verticalAlign: 'middle' };
@@ -187,5 +186,34 @@ export const FuelPumpIcon = ({ size = 64 }: { size?: number }) => (
             {/* Hose */}
             <path d="M56 34H60V48C60 51.3137 57.3137 54 54 54H50" stroke="#374151" strokeWidth="5" strokeLinecap="round"/>
         </g>
+    </svg>
+);
+
+export const ChartIcon = () => (
+    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="chartGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#f472b6" />
+                <stop offset="100%" stopColor="#ec4899" />
+            </linearGradient>
+        </defs>
+        <path d="M4 18.5V12.5C4 12.2239 4.22386 12 4.5 12H5.5C5.77614 12 6 12.2239 6 12.5V18.5C6 18.7761 5.77614 19 5.5 19H4.5C4.22386 19 4 18.7761 4 18.5Z" fill="url(#chartGradient)" fillOpacity="0.7"/>
+        <path d="M11 18.5V6.5C11 6.22386 11.2239 6 11.5 6H12.5C12.7761 6 13 6.22386 13 6.5V18.5C13 18.7761 12.7761 19 12.5 19H11.5C11.2239 19 11 18.7761 11 18.5Z" fill="url(#chartGradient)"/>
+        <path d="M18 18.5V10.5C18 10.2239 18.2239 10 18.5 10H19.5C19.7761 10 20 10.2239 20 10.5V18.5C20 18.7761 19.7761 19 19.5 19H18.5C18.2239 19 18 18.7761 18 18.5Z" fill="url(#chartGradient)" fillOpacity="0.8"/>
+        <path d="M3 21H21" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+);
+
+
+export const BellIcon = () => (
+    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="bellGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#facc15" />
+                <stop offset="100%" stopColor="#fbbf24" />
+            </linearGradient>
+        </defs>
+        <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" fill="url(#bellGradient)" stroke="#eab308" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 22.0001 12 22C11.6496 22.0001 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
 );

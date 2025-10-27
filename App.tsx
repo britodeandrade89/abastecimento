@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { RawFuelEntry, ProcessedFuelEntry, MaintenanceData, FuelType } from './types';
+import { RawFuelEntry, ProcessedFuelEntry, MaintenanceData, FuelType, Reminder } from './types';
 import { LoginScreen } from './components/LoginScreen';
 import { StatsCard } from './components/StatsCard';
 import { MonthSummary } from './components/MonthSummary';
@@ -9,7 +8,9 @@ import { EntryModal } from './components/EntryModal';
 import { TripModal } from './components/TripModal';
 import { MaintenanceModal } from './components/MaintenanceModal';
 import { EntryDetailModal } from './components/EntryDetailModal';
-import { PlusIcon, CalculatorIcon, WrenchIcon, ExportIcon, RoadIcon, DollarSignIcon, GaugeIcon, UserIcon, FuelPumpIcon, EditIcon } from './components/Icons';
+import { RemindersModal } from './components/RemindersModal';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { PlusIcon, CalculatorIcon, WrenchIcon, ExportIcon, RoadIcon, DollarSignIcon, GaugeIcon, UserIcon, FuelPumpIcon, EditIcon, BellIcon, ChartIcon } from './components/Icons';
 
 const getInitialSeedData = (): RawFuelEntry[] => {
     return [
@@ -27,7 +28,8 @@ const App: React.FC = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('isLoggedIn') === 'true');
     const [rawEntries, setRawEntries] = useState<RawFuelEntry[]>([]);
     const [maintenanceData, setMaintenanceData] = useState<MaintenanceData>({ oil: 0, tires: 0, engine: 0 });
-    const [activeModal, setActiveModal] = useState<'entry' | 'trip' | 'maintenance' | 'detail' | null>(null);
+    const [reminders, setReminders] = useState<Reminder[]>([]);
+    const [activeModal, setActiveModal] = useState<'entry' | 'trip' | 'maintenance' | 'detail' | 'reminders' | null>(null);
     const [selectedEntry, setSelectedEntry] = useState<ProcessedFuelEntry | null>(null);
     const [entryToEdit, setEntryToEdit] = useState<RawFuelEntry | null>(null);
     const [monthFilter, setMonthFilter] = useState<string>('all');
@@ -48,11 +50,15 @@ const App: React.FC = () => {
                 }));
                 setRawEntries(parsed);
             } else {
-               // Pre-load with initial data if nothing is stored
-                setRawEntries(getInitialSeedData());
+               setRawEntries(getInitialSeedData());
             }
+            
             const storedMaintenance = localStorage.getItem('maintenanceData');
             if (storedMaintenance) setMaintenanceData(JSON.parse(storedMaintenance));
+
+            const storedReminders = localStorage.getItem('reminders');
+            if (storedReminders) setReminders(JSON.parse(storedReminders));
+
         } catch (error) {
             console.error("Failed to load data from localStorage", error);
             setRawEntries(getInitialSeedData());
@@ -66,6 +72,10 @@ const App: React.FC = () => {
     useEffect(() => {
         if (isLoggedIn) localStorage.setItem('maintenanceData', JSON.stringify(maintenanceData));
     }, [maintenanceData, isLoggedIn]);
+
+    useEffect(() => {
+        if (isLoggedIn) localStorage.setItem('reminders', JSON.stringify(reminders));
+    }, [reminders, isLoggedIn]);
 
     const processedEntries = useMemo((): ProcessedFuelEntry[] => {
         const sorted = [...rawEntries].sort((a, b) => a.date.toMillis() - b.date.toMillis() || a.kmEnd - b.kmEnd);
@@ -139,13 +149,10 @@ const App: React.FC = () => {
         return items.map(item => {
             const lastServiceKm = maintenanceData[item.id as keyof MaintenanceData] || 0;
             if (lastServiceKm === 0) return null;
-
             const nextServiceKm = lastServiceKm + item.interval;
             const kmRemaining = nextServiceKm - currentMileage;
-
             let status = 'ok';
             let message = '';
-
             if (currentMileage >= nextServiceKm) {
                 status = 'overdue';
                 message = `Vencido há ${Math.abs(kmRemaining).toLocaleString('pt-BR')} km`;
@@ -153,11 +160,77 @@ const App: React.FC = () => {
                 status = 'warning';
                 message = `Faltam ${kmRemaining.toLocaleString('pt-BR')} km`;
             }
-
             return { ...item, status, message };
         }).filter((item): item is NonNullable<typeof item> => item !== null && item.status !== 'ok');
 
     }, [currentMileage, maintenanceData]);
+
+    const dueReminders = useMemo(() => {
+        if (!currentMileage) return [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        return reminders.map(reminder => {
+            let isDue = false;
+            let message = '';
+
+            if (reminder.type === 'km') {
+                const dueKm = reminder.isRecurring 
+                    ? (reminder.lastCompletionKm || 0) + (reminder.recurringKmInterval || 0)
+                    : reminder.kmValue || 0;
+                
+                if (currentMileage >= dueKm) {
+                    isDue = true;
+                    message = `Vencido em ${dueKm.toLocaleString('pt-BR')} km`;
+                }
+            } else { // date
+                const targetDateStr = reminder.isRecurring 
+                    ? new Date(reminder.lastCompletionDate || new Date(0))
+                    : new Date(reminder.dateValue || new Date(0));
+
+                if (reminder.isRecurring) {
+                    targetDateStr.setDate(targetDateStr.getDate() + (reminder.recurringDaysInterval || 0));
+                }
+                const targetDate = new Date(targetDateStr);
+
+                if (today >= targetDate) {
+                    isDue = true;
+                    message = `Vencido em ${targetDate.toLocaleDateString('pt-BR')}`;
+                }
+            }
+            return { ...reminder, isDue, message };
+        }).filter(r => r.isDue);
+    }, [reminders, currentMileage]);
+
+    const chartData = useMemo(() => {
+        const chronologicalEntries = [...processedEntries].reverse();
+        const monthlyData: { [key: string]: { totalSpent: number; totalDistance: number; totalLiters: number; count: number } } = {};
+
+        chronologicalEntries.forEach(entry => {
+            const monthKey = `${entry.date.getFullYear()}-${String(entry.date.getUTCMonth() + 1).padStart(2, '0')}`;
+            if (!monthlyData[monthKey]) {
+                monthlyData[monthKey] = { totalSpent: 0, totalDistance: 0, totalLiters: 0, count: 0 };
+            }
+            monthlyData[monthKey].totalSpent += entry.totalValue;
+            if (entry.distance > 0) {
+                monthlyData[monthKey].totalDistance += entry.distance;
+                monthlyData[monthKey].totalLiters += entry.liters;
+                monthlyData[monthKey].count++;
+            }
+        });
+
+        return Object.keys(monthlyData).map(key => {
+            const data = monthlyData[key];
+            const [year, month] = key.split('-');
+            const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('pt-BR', { month: 'short' });
+            
+            return {
+                name: `${monthName}/${year.slice(2)}`,
+                gasto: parseFloat(data.totalSpent.toFixed(2)),
+                consumo: data.totalLiters > 0 ? parseFloat((data.totalDistance / data.totalLiters).toFixed(1)) : 0,
+            };
+        });
+    }, [processedEntries]);
     
     const handleCloseModal = useCallback(() => {
         setActiveModal(null);
@@ -183,15 +256,17 @@ const App: React.FC = () => {
     const handleSaveMaintenance = useCallback((data: MaintenanceData) => {
         setMaintenanceData(data);
     }, []);
+
+    const handleSaveReminders = useCallback((newReminders: Reminder[]) => {
+        setReminders(newReminders);
+    }, []);
     
     const handleExportCSV = useCallback(() => {
         if (rawEntries.length === 0) {
             alert("Não há dados para exportar.");
             return;
         }
-
         const headers = ['id', 'date', 'totalValue', 'pricePerLiter', 'kmEnd', 'fuelType', 'notes'];
-        
         const formatDate = (timestamp: Timestamp) => {
             const date = timestamp.toDate();
             const year = date.getUTCFullYear();
@@ -199,26 +274,15 @@ const App: React.FC = () => {
             const day = String(date.getUTCDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
         };
-
         const sortedEntries = [...rawEntries].sort((a, b) => a.date.toMillis() - b.date.toMillis());
-
         const csvRows = [
             headers.join(','),
             ...sortedEntries.map(entry => {
                 const sanitizedNotes = `"${(entry.notes || '').replace(/"/g, '""')}"`;
-                const row = [
-                    entry.id,
-                    formatDate(entry.date),
-                    entry.totalValue.toFixed(2),
-                    entry.pricePerLiter.toFixed(3),
-                    entry.kmEnd,
-                    entry.fuelType,
-                    sanitizedNotes,
-                ];
+                const row = [entry.id, formatDate(entry.date), entry.totalValue.toFixed(2), entry.pricePerLiter.toFixed(3), entry.kmEnd, entry.fuelType, sanitizedNotes];
                 return row.join(',');
             })
         ];
-
         const csvString = csvRows.join('\n');
         const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -276,31 +340,35 @@ const App: React.FC = () => {
                     </div>
                 </section>
 
-                {maintenanceReminders.length > 0 && (
+                <section className="mb-8">
+                    <div className="bg-gradient-to-r from-pink-800/70 to-black/40 p-3 rounded-lg mb-4 shadow-md">
+                        <h2 className="text-xl font-semibold text-white">Análise Gráfica</h2>
+                    </div>
+                    <AnalyticsDashboard data={chartData} />
+                </section>
+
+                {(maintenanceReminders.length > 0 || dueReminders.length > 0) && (
                     <section className="mb-8">
                         <div className="bg-gradient-to-r from-yellow-800/70 to-red-800/40 p-3 rounded-lg mb-4 shadow-md">
-                            <h2 className="text-xl font-semibold text-white">Lembretes de Manutenção</h2>
+                            <h2 className="text-xl font-semibold text-white">Lembretes Pendentes</h2>
                         </div>
                         <div className="space-y-3">
                             {maintenanceReminders.map(reminder => (
-                                <button 
-                                    key={reminder.id}
-                                    onClick={() => setActiveModal('maintenance')}
-                                    className={`w-full text-left p-4 rounded-xl flex items-center gap-4 transition-transform hover:scale-[1.02] ${
-                                        reminder.status === 'warning'
-                                            ? 'bg-yellow-900/50 border border-yellow-700'
-                                            : 'bg-red-900/50 border border-red-700'
-                                    }`}
-                                >
-                                    <div className={`p-2 rounded-full ${
-                                        reminder.status === 'warning' ? 'bg-yellow-500/20' : 'bg-red-500/20'
-                                    }`}>
-                                    <WrenchIcon />
-                                    </div>
+                                <button key={reminder.id} onClick={() => setActiveModal('maintenance')}
+                                    className={`w-full text-left p-4 rounded-xl flex items-center gap-4 transition-transform hover:scale-[1.02] ${reminder.status === 'warning' ? 'bg-yellow-900/50 border border-yellow-700' : 'bg-red-900/50 border border-red-700'}`}>
+                                    <div className={`p-2 rounded-full ${reminder.status === 'warning' ? 'bg-yellow-500/20' : 'bg-red-500/20'}`}><WrenchIcon /></div>
                                     <div>
-                                        <p className={`font-bold ${
-                                            reminder.status === 'warning' ? 'text-yellow-300' : 'text-red-300'
-                                        }`}>{reminder.name}</p>
+                                        <p className={`font-bold ${reminder.status === 'warning' ? 'text-yellow-300' : 'text-red-300'}`}>{reminder.name}</p>
+                                        <p className="text-sm text-gray-200">{reminder.message}</p>
+                                    </div>
+                                </button>
+                            ))}
+                            {dueReminders.map(reminder => (
+                                <button key={reminder.id} onClick={() => setActiveModal('reminders')}
+                                    className="w-full text-left p-4 rounded-xl flex items-center gap-4 transition-transform hover:scale-[1.02] bg-yellow-900/50 border border-yellow-700">
+                                    <div className="p-2 rounded-full bg-yellow-500/20"><BellIcon /></div>
+                                    <div>
+                                        <p className="font-bold text-yellow-300">{reminder.name}</p>
                                         <p className="text-sm text-gray-200">{reminder.message}</p>
                                     </div>
                                 </button>
@@ -313,9 +381,9 @@ const App: React.FC = () => {
                     <div className="bg-gradient-to-r from-green-800/70 to-black/40 p-3 rounded-lg mb-4 shadow-md">
                         <h2 className="text-xl font-semibold text-white">Ações Rápidas</h2>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                        <button onClick={() => { setEntryToEdit(null); setActiveModal('entry'); }} className="flex items-center justify-center gap-3 bg-[var(--theme-card-bg)] hover:bg-gray-800/80 p-4 rounded-xl transition-colors text-center">
-                            <PlusIcon /> <span className="font-semibold">Adicionar Abastecimento</span>
+                            <PlusIcon /> <span className="font-semibold">Abastecimento</span>
                         </button>
                         <button onClick={() => setActiveModal('trip')} className="flex items-center justify-center gap-3 bg-[var(--theme-card-bg)] hover:bg-gray-800/80 p-4 rounded-xl transition-colors text-center">
                             <CalculatorIcon /> <span className="font-semibold">Estimar Viagem</span>
@@ -323,7 +391,10 @@ const App: React.FC = () => {
                         <button onClick={() => setActiveModal('maintenance')} className="flex items-center justify-center gap-3 bg-[var(--theme-card-bg)] hover:bg-gray-800/80 p-4 rounded-xl transition-colors text-center">
                             <WrenchIcon /> <span className="font-semibold">Manutenção</span>
                         </button>
-                        <button onClick={handleExportCSV} className="flex items-center justify-center gap-3 bg-[var(--theme-card-bg)] hover:bg-gray-800/80 p-4 rounded-xl transition-colors text-center">
+                         <button onClick={() => setActiveModal('reminders')} className="flex items-center justify-center gap-3 bg-[var(--theme-card-bg)] hover:bg-gray-800/80 p-4 rounded-xl transition-colors text-center">
+                            <BellIcon /> <span className="font-semibold">Lembretes</span>
+                        </button>
+                        <button onClick={handleExportCSV} className="flex items-center justify-center gap-3 bg-[var(--theme-card-bg)] hover:bg-gray-800/80 p-4 rounded-xl transition-colors text-center col-span-2 lg:col-span-1">
                             <ExportIcon /> <span className="font-semibold">Exportar CSV</span>
                         </button>
                     </div>
@@ -385,38 +456,19 @@ const App: React.FC = () => {
             </footer>
 
             {activeModal === 'entry' && (
-                <EntryModal
-                    isOpen={activeModal === 'entry'}
-                    onClose={handleCloseModal}
-                    onSave={handleSaveEntry}
-                    entryToEdit={entryToEdit}
-                    lastKm={currentMileage}
-                />
+                <EntryModal isOpen={true} onClose={handleCloseModal} onSave={handleSaveEntry} entryToEdit={entryToEdit} lastKm={currentMileage} />
             )}
             {activeModal === 'trip' && (
-                <TripModal
-                    isOpen={activeModal === 'trip'}
-                    onClose={handleCloseModal}
-                    overallAvgKmpl={displayStats.averageKmpl}
-                />
+                <TripModal isOpen={true} onClose={handleCloseModal} overallAvgKmpl={displayStats.averageKmpl} />
             )}
             {activeModal === 'maintenance' && (
-                <MaintenanceModal
-                    isOpen={activeModal === 'maintenance'}
-                    onClose={handleCloseModal}
-                    onSave={handleSaveMaintenance}
-                    currentMileage={currentMileage}
-                    initialData={maintenanceData}
-                />
+                <MaintenanceModal isOpen={true} onClose={handleCloseModal} onSave={handleSaveMaintenance} currentMileage={currentMileage} initialData={maintenanceData} />
+            )}
+            {activeModal === 'reminders' && (
+                <RemindersModal isOpen={true} onClose={handleCloseModal} reminders={reminders} onSave={handleSaveReminders} currentMileage={currentMileage} />
             )}
             {selectedEntry && (
-                <EntryDetailModal
-                    isOpen={activeModal === 'detail'}
-                    onClose={handleCloseModal}
-                    entry={selectedEntry}
-                    onDelete={handleDeleteEntry}
-                    onEdit={handleEditClick}
-                />
+                <EntryDetailModal isOpen={activeModal === 'detail'} onClose={handleCloseModal} entry={selectedEntry} onDelete={handleDeleteEntry} onEdit={handleEditClick} />
             )}
         </div>
     );
