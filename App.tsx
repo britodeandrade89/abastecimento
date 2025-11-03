@@ -15,14 +15,22 @@ import { PlusIcon, CalculatorIcon, WrenchIcon, ExportIcon, RoadIcon, DollarSignI
 
 const getInitialSeedData = (): RawFuelEntry[] => {
     return [
-        // April 2024 Data
-        { id: '1', date: Timestamp.fromDate(new Date('2024-04-12T00:00:00Z')), totalValue: 100.00, pricePerLiter: 6.19, kmEnd: 134620, fuelType: FuelType.GASOLINE, notes: 'Posto Shell' },
-        { id: '2', date: Timestamp.fromDate(new Date('2024-04-14T00:00:00Z')), totalValue: 100.00, pricePerLiter: 6.19, kmEnd: 134843, fuelType: FuelType.GASOLINE, notes: '' },
-        { id: '3', date: Timestamp.fromDate(new Date('2024-04-16T00:00:00Z')), totalValue: 50.00, pricePerLiter: 5.89, kmEnd: 134932, fuelType: FuelType.GASOLINE, notes: '' },
-        // May 2024 Data
-        { id: '4', date: Timestamp.fromDate(new Date('2024-05-22T00:00:00Z')), totalValue: 50.00, pricePerLiter: 6.19, kmEnd: 135010, fuelType: FuelType.GASOLINE, notes: 'Viagem' },
-        { id: '5', date: Timestamp.fromDate(new Date('2024-05-29T00:00:00Z')), totalValue: 273.82, pricePerLiter: 5.75, kmEnd: 135193, fuelType: FuelType.GASOLINE, notes: '' }
+        { id: '1', date: Timestamp.fromDate(new Date('2025-09-29T00:00:00Z')), totalValue: 273.82, pricePerLiter: 5.75, kmEnd: 135193, fuelType: FuelType.GASOLINE, notes: '' },
+        { id: '2', date: Timestamp.fromDate(new Date('2025-10-05T00:00:00Z')), totalValue: 50.00, pricePerLiter: 4.89, kmEnd: 135649, fuelType: FuelType.ETHANOL, notes: '' },
+        { id: '3', date: Timestamp.fromDate(new Date('2025-10-08T00:00:00Z')), totalValue: 100.00, pricePerLiter: 5.89, kmEnd: 135738, fuelType: FuelType.GASOLINE, notes: '' },
+        { id: '4', date: Timestamp.fromDate(new Date('2025-10-17T00:00:00Z')), totalValue: 50.00, pricePerLiter: 6.09, kmEnd: 135850, fuelType: FuelType.GASOLINE, notes: '' },
+        { id: '5', date: Timestamp.fromDate(new Date('2025-10-18T00:00:00Z')), totalValue: 100.00, pricePerLiter: 5.89, kmEnd: 135982, fuelType: FuelType.GASOLINE, notes: '' },
+        { id: '6', date: Timestamp.fromDate(new Date('2025-10-25T00:00:00Z')), totalValue: 50.00, pricePerLiter: 5.79, kmEnd: 136216, fuelType: FuelType.GASOLINE, notes: '' },
+        { id: '7', date: Timestamp.fromDate(new Date('2025-10-29T00:00:00Z')), totalValue: 50.00, pricePerLiter: 6.09, kmEnd: 136296, fuelType: FuelType.GASOLINE, notes: '' },
+        { id: '8', date: Timestamp.fromDate(new Date('2025-10-30T00:00:00Z')), totalValue: 255.84, pricePerLiter: 5.89, kmEnd: 136366, fuelType: FuelType.GASOLINE, notes: 'Gasto real de R$ 155,84 (Seu Cláudio ajudou com R$ 100,00)' },
     ];
+};
+
+const getCurrentMonthString = (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
 };
 
 const App: React.FC = () => {
@@ -33,7 +41,7 @@ const App: React.FC = () => {
     const [activeModal, setActiveModal] = useState<'entry' | 'trip' | 'maintenance' | 'detail' | 'reminders' | null>(null);
     const [selectedEntry, setSelectedEntry] = useState<ProcessedFuelEntry | null>(null);
     const [entryToEdit, setEntryToEdit] = useState<RawFuelEntry | null>(null);
-    const [monthFilter, setMonthFilter] = useState<string>('all');
+    const [monthFilter, setMonthFilter] = useState<string>(getCurrentMonthString());
     
     const handleLogin = () => {
         localStorage.setItem('isLoggedIn', 'true');
@@ -123,18 +131,21 @@ const App: React.FC = () => {
     }, [processedEntries, monthFilter]);
 
     const displayStats = useMemo(() => {
-        const entriesToUse = monthFilter === 'all' ? processedEntries.filter(e => e.distance > 0) : filteredEntries.filter(e => e.distance > 0);
+        // Use all entries in the period for total spending
         const totalSpent = filteredEntries.reduce((sum, e) => sum + e.totalValue, 0);
-        const totalDistance = entriesToUse.reduce((sum, e) => sum + e.distance, 0);
-        const totalLiters = entriesToUse.reduce((sum, e) => sum + e.liters, 0);
+        
+        // Use only entries with a calculated distance for consumption stats
+        const entriesForConsumption = filteredEntries.filter(e => e.distance > 0);
+        const totalDistance = entriesForConsumption.reduce((sum, e) => sum + e.distance, 0);
+        const totalLiters = entriesForConsumption.reduce((sum, e) => sum + e.liters, 0);
         const averageKmpl = totalLiters > 0 ? totalDistance / totalLiters : 0;
+        
         return { totalSpent, totalDistance, averageKmpl };
-    }, [filteredEntries, processedEntries, monthFilter]);
+    }, [filteredEntries]);
 
     const availableMonths = useMemo(() => {
         const months = new Set(processedEntries.map(e => `${e.date.getUTCFullYear()}-${String(e.date.getUTCMonth() + 1).padStart(2, '0')}`));
-        const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        months.add(currentMonth);
+        months.add(getCurrentMonthString());
         return Array.from(months).sort((a: string, b: string) => b.localeCompare(a));
     }, [processedEntries]);
     
@@ -335,9 +346,9 @@ const App: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                        <StatsCard icon={<RoadIcon />} label="KM Atual" value={currentMileage.toLocaleString('pt-BR')} />
-                       <StatsCard icon={<DollarSignIcon />} label={`Gasto ${monthFilter === 'all' ? 'Total' : 'do Mês'}`} value={`R$ ${displayStats.totalSpent.toFixed(2)}`} />
-                       <StatsCard icon={<GaugeIcon />} label={`Distância ${monthFilter === 'all' ? 'Total' : 'do Mês'}`} value={`${displayStats.totalDistance.toFixed(0)} km`} />
-                       <StatsCard icon={<GaugeIcon />} label={`Média ${monthFilter === 'all' ? 'Geral' : 'do Mês'}`} value={`${displayStats.averageKmpl.toFixed(1)} km/L`} />
+                       <StatsCard icon={<DollarSignIcon />} label={`Gasto ${monthFilter === 'all' ? 'Total' : 'no Mês'}`} value={`R$ ${displayStats.totalSpent.toFixed(2)}`} />
+                       <StatsCard icon={<GaugeIcon />} label={`Distância ${monthFilter === 'all' ? 'Total' : 'no Mês'}`} value={`${displayStats.totalDistance.toFixed(0)} km`} />
+                       <StatsCard icon={<GaugeIcon />} label={`Média ${monthFilter === 'all' ? 'Geral' : 'no Mês'}`} value={`${displayStats.averageKmpl.toFixed(1)} km/L`} />
                     </div>
                 </section>
 
