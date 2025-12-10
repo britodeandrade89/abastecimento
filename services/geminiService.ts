@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { ProcessedFuelEntry } from '../types';
 
@@ -13,7 +14,7 @@ function getAiInstance(): GoogleGenAI | null {
 
     try {
         // On the first call, attempt to initialize the AI client.
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        ai = new GoogleGenAI({ apiKey: 'AIzaSyCJ9K6sovkNzeO_fuQbSPD9LnIUG0p8Da4' });
         initialized = true;
         return ai;
     } catch (error) {
