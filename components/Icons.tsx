@@ -1,6 +1,51 @@
+
 import React from 'react';
 
 const iconStyle: React.CSSProperties = { width: '1.25em', height: '1.25em', verticalAlign: 'middle' };
+
+export const AppLogo = ({ size = 120 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="logoBg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#064e3b" /> 
+                <stop offset="100%" stopColor="#065f46" />
+            </linearGradient>
+            <linearGradient id="dropGradient" x1="0.5" y1="0" x2="0.5" y2="1">
+                <stop offset="0%" stopColor="#4ade80" />
+                <stop offset="100%" stopColor="#16a34a" />
+            </linearGradient>
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+            <filter id="innerShadow" x0="-50%" y0="-50%" width="200%" height="200%">
+                <feComponentTransfer in="SourceAlpha">
+                    <feFuncA type="table" tableValues="1 0" />
+                </feComponentTransfer>
+                <feGaussianBlur stdDeviation="2" />
+                <feOffset dx="1" dy="2" result="offsetblur" />
+                <feFlood floodColor="#000000" floodOpacity="0.5" />
+                <feComposite in2="offsetblur" operator="in" />
+                <feComposite in2="SourceAlpha" operator="in" />
+                <feMerge>
+                    <feMergeNode in="SourceGraphic" />
+                    <feMergeNode />
+                </feMerge>
+            </filter>
+        </defs>
+        
+        {/* Background Squircle */}
+        <rect x="10" y="10" width="100" height="100" rx="22" fill="url(#logoBg)" stroke="#10b981" strokeWidth="1" strokeOpacity="0.3" />
+        
+        {/* Drop Shape with Gradient */}
+        <path d="M60 25 C60 25 35 58 35 75 C35 88.8071 46.1929 100 60 100 C73.8071 100 85 88.8071 85 75 C85 58 60 25 60 25 Z" 
+              fill="url(#dropGradient)" filter="url(#glow)" />
+              
+        {/* Lightning Bolt (Cutout style) */}
+        <path d="M62 42 L48 68 H58 L55 85 L72 62 H60 L62 42 Z" 
+              fill="#064e3b" stroke="#064e3b" strokeWidth="1" strokeLinejoin="round" />
+    </svg>
+);
 
 export const PlusIcon = () => (
     <svg style={iconStyle} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
